@@ -1,0 +1,82 @@
+<!doctype html>
+<html>
+	<head>
+		<title>chat</title>
+		<style>
+			* { margin: 0; padding: 0; box-sizing: border-box; }
+			body { font: 20px Helvetica, Arial; }
+			#messageform { background: #000; padding: 3px; position: fixed; bottom:0; width: 100%; }
+			#messageform input { border: 0; font-size:20px; padding: 10px; width: 90%; margin-right: .5%;}
+			#messageform button { width: 9%; background: rgb(130, 224, 255); border: none; padding: 10px;}
+
+			#messages { list-style-type: none; margin: 0; padding: 0; }
+			#messages li { padding: 10px 20px; }
+			#messages li:nth-child(odd) { background: #eee; }
+
+		</style>
+	</head>
+	<body>
+		
+		
+			<div id="mgr" 
+			   style="background-color:#EEEEEE; line-height:30px; height:90vh; width:100%;float:left;padding:30px 30px;
+			          overflow-x:hidden; overflow-y:auto;">
+			  <ul id="messages"></ul>
+			</div>  
+		<div style="height:10vh;">
+			  <form id="messageform"　action="">
+				 <input id="m" autocomplete="off" /><button>Send</button>
+			  </form>
+		</div>
+	</body>
+</html>
+<script src="/socket.io/socket.io.js"></script>
+<script src="https://code.jquery.com/jquery-1.11.1.js"></script>
+<script>
+    var my_id=null; //todo
+    var your_id=null;
+	var obj=document.getElementById("mgr");
+	
+	$(function () {
+		var socket = io.connect('/private');
+		socket.on('connect', function(){
+			var A=window.opener;
+			my_id=A.my_id;
+			your_id=A.chat_partner;
+			document.title=my_id + " chat with " + your_id;
+			socket.emit("transmit our id", my_id, your_id);
+           $('#messages').append($('<p align="left">').text(  your_id + " and you are in secret channel."));
+			
+		});
+
+ 		$('#messageform').submit(function(){
+			socket.emit('private_chat message', $('#m').val(), my_id, your_id);
+			$('#m').val('');
+			return false;
+		});
+
+		socket.on('private_chat message', function(msg, ID1, ID2){
+			if(my_id===ID2 && your_id===ID1)
+				$('#messages').append($('<p align="left">').text( your_id +': ' + msg));
+			if(my_id===ID1 && your_id===ID2)
+				if(msg!=='')
+					$('#messages').append($('<p align="right">').text(msg));
+				else
+					$('#messages').append($('<p align="right">').text('\n'));
+			
+			obj.scrollTop=obj.scrollHeight;	
+   		});
+
+		socket.on('private_server say', function(ID,ID2){
+			console.log(ID + ID2);
+			if(ID===your_id && ID2===my_id)
+			{
+				$('#messages').append($('<p align="left">').text(your_id +" just left this conversation. \n this page wil be closed after 5 secs." ));
+				for(let i=0;i<5;++i)
+					setTimeout(function(){ $('#messages').append($('<p align="left">').text( 5-i + "secs left")); obj.scrollTop=obj.scrollHeight; },1000*i);
+				setTimeout(function(){ window.close(); }, 5000);
+			}
+		});
+	
+	});
+</script>

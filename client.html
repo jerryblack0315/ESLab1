@@ -1,51 +1,153 @@
 <!doctype html>
 <html>
-  <head>
-    <title>Socket.IO chat</title>
-    <style>
-      * { margin: 0; padding: 0; box-sizing: border-box; }
-      body { font: 13px Helvetica, Arial; }
-      form { background: #000; padding: 3px; position: fixed; bottom: 0; width: 100%; }
-      form input { border: 0; font-size:13px; padding: 10px; width: 90%; margin-right: .5%; }
-      form button { width: 9%; background: rgb(130, 224, 255); border: none; padding: 10px; }
-      #messages { list-style-type: none; margin: 0; padding: 0; }
-      #messages li { padding: 5px 10px; }
-      #messages li:nth-child(odd) { background: #eee; }
-    </style>
-  </head>
-  <body>
-    <ul id="messages"></ul>
-    <form action="">
-      <input id="m" autocomplete="off" /><button>Send</button>
-    </form>
-  </body>
+	<head>
+		<title>Jerry chat with Bob</title>
+		<style>
+			* { margin: 0; padding: 0; box-sizing: border-box; }
+			body { font: 20px Helvetica, Arial; }
+			#messageform { background: #000; padding: 3px; position: fixed; bottom:0; width: 100%; }
+			#messageform input { border: 0; font-size:20px; padding: 10px; width: 90%; margin-right: .5%;}
+			#messageform button { width: 9%; background: rgb(130, 224, 255); border: none; padding: 10px;}
+
+			#loginform { background: #000; padding: 3px; position:middle; width: 100%; }
+			#loginform input { width: 278px; height: 18px; margin-bottom: 10px; outline: none; padding: 10px; font-size: 13px; color: #fff;
+			                   text-shadow:1px 1px 1px; border-top: 1px solid #312E3D; border-left: 1px solid #312E3D; 
+							   border-right: 1px solid #312E3D; border-bottom: 1px solid #56536A; border-radius: 4px; background-color: #2D2D3F; }
+			#loginform button { width: 290px; min-height: 20px; display: block; background-color: #4a77d4; border: 1px solid #3762bc;  color: #fff;   
+                                padding: 9px 14px; font-size: 15px; line-height: normal; border-radius: 5px; margin: 0;}
+
+			#messages { list-style-type: none; margin: 0; padding: 0; }
+			#messages li { padding: 10px 20px; }
+			#messages li:nth-child(odd) { background: #eee; }
+
+		</style>
+	</head>
+	<body>
+		<div id="loginmain" style=" height:100vh; width:100%; background-color: #4A374A;">
+		    <div id="login" style="position: absolute;  top: 50%;   left:50%;  margin: -150px 0 0 -150px; width: 300px;  height: 300px; background-color: #4A374A;" >
+			   <h1 style="color: #fff; text-shadow:0 0 10px; letter-spacing: 1px; text-align: center;  font-size: 2em; margin: 0.67em 0;">Login</h1>  
+               <form id="loginform" method="post">  
+      	          <input id="usernameinput" type="text" required="required" placeholder="用户名" name="u"></input>  
+                  <input id="passwordinput" type="password" required="required" placeholder="密码" name="p"></input>  
+                  <button class="but" type="submit">登录</button>  
+     	      </form>     
+			</div>   
+		</div>
+		<div id="chatroom" style="height:100vh; width:100vh; display:none;">
+			<div id="mgr" 
+			   style="background-color:#EEEEEE; line-height:30px; height:90vh; width:85%;float:left;padding:30px 30px;
+			          overflow-x:hidden; overflow-y:auto;">
+			  <ul id="messages"></ul>
+			</div>  
+			<div id="onlineuser" class="col-md-3" style="background-color:	#009FCC; line-height:30px; height:90vh; width:15%;float:right;
+					 padding:15px 20px; overflow: scroll;">
+		 	   線上名單：
+		 	   <div id="users"></div>
+		    </div> 
+			<div style="height:10vh;">
+			  <form id="messageform"　action="">
+				 <input id="m" autocomplete="off" /><button>Send</button>
+			  </form>
+			</div>
+        </div> 
+	</body>
 </html>
 <script src="/socket.io/socket.io.js"></script>
 <script src="https://code.jquery.com/jquery-1.11.1.js"></script>
 <script>
-  var my_id;
-  $(function () {
-    var socket = io();
-    $('form').submit(function(){
-      //$('#messages').append($('<p align="right">').text($('#m').val())
-      socket.emit('chat message', my_id + ':' + $('#m').val());
-      $('#m').val('');
-      return false;
-    });
-    socket.on('chat message', function(msg, who){
-      if(who===my_id)
-        $('#messages').append($('<p align="right">').text(msg));
-      else
-        $('#messages').append($('<li>').text(msg));
-      window.scrollTo(0, document.body.scrollHeight);
-    });
-    socket.on('connect', function(){
-      //$('#messages').append($('<li>').text('enter your id'));
-      socket.emit('addme', prompt('Who are you?'));
-    });
-    socket.on('check id', function(username, data){
-      my_id=username;
-      $('#messages').append($('<li>').text(data));
-    });
-  });
+	var my_id;
+	var chat_partner;
+	var obj=document.getElementById("mgr");
+   	$(function () {
+		var socket = io.connect('/');
+		socket.on('connect', function(){
+			$('#loginform').submit(function(){
+				socket.emit('addme', $('#usernameinput').val(), $('#passwordinput').val());
+				//$('#usernameinput').val('');
+				$('#passwordinput').val('');
+				return false;
+			});
+		});
+
+		$('#messageform').submit(function(){
+			socket.emit('chat message', $('#m').val(), my_id);
+			$('#m').val('');
+			return false;
+		});
+
+		socket.on('chat message', function(msg, who, server){
+		if(server==="SERVER")
+			$('#messages').append($('<p align="left">').text('SERVER: ' + msg));
+		else if(who===my_id)
+		    if(msg!=='')
+			$('#messages').append($('<p align="right">').text(msg));
+			else
+			$('#messages').append($('<p align="right">').text('\n'));
+		else
+			$('#messages').append($('<p align="left">').text(who + ':'+msg));
+
+		obj.scrollTop=obj.scrollHeight;	
+		});
+	
+		socket.on('check id', function(username, data){
+			loginmain.style.display='none';
+			chatroom.style.display='inline';
+			my_id=username;
+			$('#messages').append($('<p align="left">').text(data));
+		});
+
+		socket.on('updatenames', function(data){
+			document.getElementById('users').innerHTML="";
+			for(var d = 0; d < data.length; d++ ) {
+				if(data[d]!==my_id)
+				  { var dc_but=document.createElement("button");
+                    var t = document.createTextNode(data[d]);       // Create a text node
+					dc_but.appendChild(t);
+					dc_but.value=data[d];
+					dc_but.onclick = Test; 
+				    $('div#users').append(dc_but);
+					$('div#users').append("<br />");
+					} 
+				else
+				  { var sb = data[d] +"(You)" + "<br />";
+				     $('div#users').append(sb);
+			      }
+
+			}
+		});
+
+		function Test(){
+			var rec=this.value;
+			socket.emit('private_chat',my_id, rec);
+		}
+		
+		socket.on('private_message start', function(trans, receive){
+			if(my_id===receive){
+				chat_partner=trans;
+				window.open('private');
+			}
+			if(my_id===trans){
+				chat_partner=receive;
+				window.open('private');
+			}
+		});
+
+		socket.on('wrong password', function(){
+			window.alert("The username already exists or password is incorrect!");
+		});
+
+		socket.on('already login', function(){
+			window.alert("You have already logged.");
+		});
+		
+		socket.on('regist successfully', function(username, data){
+			loginmain.style.display='none';
+			chatroom.style.display='inline';
+			my_id=username;
+			$('#messages').append($('<p align="left">').text(data));
+		});
+		socket.on('private_server say', function(ID,ID2){
+			console.log(ID + ID2);
+		});
+	});
 </script>
